@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "Orbit browser connector",
+  "version": "0.1.0",
+  "description": "Connect Indeed and your open AI workspace to Orbit without sharing credentials.",
+  "permissions": ["storage", "tabs", "scripting"],
+  "host_permissions": [
+    "https://*.indeed.com/*",
+    "https://arena.ai/*",
+    "http://localhost:5173/*",
+    "https://*.e2b.app/*"
+  ],
+  "background": { "service_worker": "background.js", "type": "module" },
+  "content_scripts": [
+    {
+      "matches": ["https://*.indeed.com/*"],
+      "js": ["content/indeed.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://arena.ai/*"],
+      "js": ["content/arena.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["http://localhost:5173/*", "https://*.e2b.app/*"],
+      "js": ["content/webapp-bridge.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "Orbit browser connector"
+  }
+}
