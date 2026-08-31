@@ -369,13 +369,236 @@ function handleAction(action) {
 }
 
 function buildArenaPrompt(job) {
-  return `You are tailoring a resume for a real job application. Use only the candidate facts below; do not invent experience, dates, metrics, tools, or qualifications. Keep the result ATS-friendly, single-column, and in the supplied HTML resume format. Return only the complete HTML document, with no notes, explanation, or markdown fences.\n\nCANDIDATE RESUME FACTS:\nMuhammed Mikdad Um — Abu Dhabi, UAE — Full-Stack Software Engineer — B.Tech Computer Science, 2026. Next.js, React, TypeScript, JavaScript, HTML, CSS, Tailwind, Node.js, Express, REST APIs, Supabase, PostgreSQL, SQL, Auth, RBAC, Webhooks, AWS ECS/App Runner, Docker, CI/CD, Gemini Vision API, prompt engineering, Text-to-SQL guardrails, Flutter, Python, Tableau, Power BI.\n\nEXPERIENCE:\nJsquare (Client: Astra Gold & Diamonds), Full-Stack Developer and Team Lead, Jan 2025–Mar 2026: scaled a Next.js and Supabase platform from 45,000 to 79,000+ active users; built referral and commission automation and payment workflows with idempotent webhooks; shipped an offline-first Flutter app and coordinated a small engineering team. Trainity, Data Analyst Intern, Sep–Dec 2024: delivered BI reporting with Python, SQL, Tableau, and Power BI; ranked Top 7 of 1,000+ candidates in the program.\n\nPROJECTS:\nTrueLedge AI accounting and audit SaaS: Gemini Vision invoice extraction, human-in-the-loop workflows, deterministic SQL bank matching with LLM fallback, secure Text-to-SQL over restricted read-only views. Algorithmic Trading and Backtesting Engine: Python workflow, WebSocket market data, risk controls. E-commerce platforms: Next.js apps with JWT authentication, RBAC admin flows, and sales dashboards.\n\nJOB DESCRIPTION:\n${job.description}\n\nTailor the summary, skills ordering, and truthful bullet emphasis to this role. Do not include notes.`;
+  const reference = resumeHtml();
+  return `You are tailoring a resume for a real job application. Use only the candidate facts below; do not invent experience, dates, metrics, tools, or qualifications. Tailor the wording and ordering to the job, but preserve the exact ATS-friendly HTML structure and CSS conventions in the reference. Return ONLY one complete HTML document beginning with <!doctype html> and ending with </html>. Do not wrap it in markdown fences. Do not add notes, commentary, explanations, or a cover letter.
+
+CANDIDATE RESUME FACTS:
+Muhammed Mikdad Um — Abu Dhabi, UAE — Full-Stack Software Engineer — B.Tech Computer Science, 2026. Next.js, React, TypeScript, JavaScript, HTML, CSS, Tailwind, Node.js, Express, REST APIs, Supabase, PostgreSQL, SQL, Auth, RBAC, Webhooks, AWS ECS/App Runner, Docker, CI/CD, Gemini Vision API, prompt engineering, Text-to-SQL guardrails, Flutter, Python, Tableau, Power BI.
+
+EXPERIENCE:
+Jsquare (Client: Astra Gold & Diamonds), Full-Stack Developer and Team Lead, Jan 2025–Mar 2026: scaled a Next.js and Supabase platform from 45,000 to 79,000+ active users; built referral and commission automation and payment workflows with idempotent webhooks; shipped an offline-first Flutter app and coordinated a small engineering team. Trainity, Data Analyst Intern, Sep–Dec 2024: delivered BI reporting with Python, SQL, Tableau, and Power BI; ranked Top 7 of 1,000+ candidates in the program.
+
+PROJECTS:
+TrueLedge AI accounting and audit SaaS: Gemini Vision invoice extraction, human-in-the-loop workflows, deterministic SQL bank matching with LLM fallback, secure Text-to-SQL over restricted read-only views. Algorithmic Trading and Backtesting Engine: Python workflow, WebSocket market data, risk controls. E-commerce platforms: Next.js apps with JWT authentication, RBAC admin flows, and sales dashboards.
+
+JOB DESCRIPTION:
+${job.description}
+
+REQUIRED HTML REFERENCE — preserve this document structure and ATS-friendly single-column styling. Replace only the resume copy needed to truthfully tailor it to the job:
+
+${reference}
+
+Final check: output only the complete HTML document. No notes.`;
 }
 
 function resumeHtml(job) {
-  const role = job ? job.title : 'Full-Stack Software Engineer';
-  const focus = job ? `Tailored for ${job.company} · ${role}` : 'Full-Stack Software Engineer · Available immediately';
-  return `<!doctype html><html><head><meta charset="utf-8"><title>Muhammed Mikdad Um — Resume</title><style>body{color:#111;font-family:Arial,Helvetica,sans-serif;font-size:11pt;line-height:1.35;margin:0}.page{max-width:8.5in;margin:auto;padding:.6in}h1{font-size:18pt;margin:0 0 6px}h2{font-size:12pt;margin:14px 0 6px;padding-top:8px;border-top:1px solid #d0d0d0;text-transform:uppercase;letter-spacing:.6px}h3{font-size:11pt;margin:10px 0 2px}p{margin:6px 0}.muted{color:#444}ul{margin:6px 0 8px 18px;padding:0}li{margin:3px 0}.label{font-weight:700}@media print{@page{size:A4;margin:.5in}.page{padding:.5in}}</style></head><body><main class="page"><h1>MUHAMMED MIKDAD UM</h1><p class="muted">Abu Dhabi, UAE | Phone: +971 52 624 5540 | Email: mikplax@gmail.com<br>LinkedIn: linkedin.com/in/mikdaaad | Portfolio: mikdad.somberonyx.in</p><p class="muted">${escapeHtml(focus)}</p><h2>Summary</h2><p>Full-Stack Software Engineer (B.Tech CSE, 2026) with hands-on experience shipping Next.js + TypeScript SaaS, Supabase/PostgreSQL, and AWS deployments. Built an AI-enabled accounting and audit product with Gemini Vision document extraction, LLM-assisted reconciliation, and secure Text-to-SQL. Scaled a production platform to 79,000+ active users and delivered a Flutter companion app. Immediate joiner.</p><h2>Technical Skills</h2><p><span class="label">Frontend:</span> Next.js, React, TypeScript, JavaScript, HTML, CSS, Tailwind CSS</p><p><span class="label">Backend:</span> Node.js, Express.js, REST APIs, Supabase, PostgreSQL, SQL, Auth, RBAC, Webhooks</p><p><span class="label">Cloud / AI:</span> AWS, Docker, CI/CD, Gemini Vision API, prompt engineering, Text-to-SQL guardrails</p><h2>Experience</h2><h3>Jsquare (Client: Astra Gold &amp; Diamonds) — Full-Stack Developer &amp; Team Lead</h3><p class="muted">Remote (Mangalore, India) | Jan 2025 – Mar 2026</p><ul><li>Scaled a Next.js + Supabase production platform from 45,000 to 79,000+ active users using optimized Postgres design, RLS policies, triggers, and serverless functions.</li><li>Built referral and commission automation and integrated payment workflows with idempotent webhook handling.</li><li>Shipped a Flutter mobile app and coordinated delivery with a small engineering team.</li></ul><h3>Trainity — Data Analyst Intern</h3><p class="muted">Virtual (Bangalore, India) | Sep 2024 – Dec 2024</p><ul><li>Delivered BI reporting using Python, SQL, Tableau, and Power BI; ranked Top 7 of 1,000+ candidates in the program.</li></ul><h2>Projects</h2><h3>TrueLedge — AI-Enabled Accounting &amp; Audit SaaS | 2026</h3><ul><li>Built a human-in-the-loop invoice ingestion pipeline using Gemini Vision to extract line items and draft accounting entries.</li><li>Implemented deterministic SQL matching with LLM fallback for semantic bank reconciliation.</li><li>Developed secure Text-to-SQL over restricted read-only views to reduce injection risk and prevent cross-tenant exposure.</li></ul><h2>Education</h2><p><span class="label">B.Tech, Computer Science</span> — Srinivas Institute of Technology, Mangalore | 2022 – 2026</p><h2>Certifications</h2><p>Machine Learning Specialization — Stanford / DeepLearning.AI<br>Full Stack Web Development Bootcamp — Udemy</p><h2>Languages</h2><p>English (Fluent) | Malayalam (Native) | Hindi (Fluent) | Kannada (Native)</p></main><script>window.onload=()=>window.print()</script></body></html>`;
+  const focus = job ? `Availability: Immediate | Open to Abu Dhabi / Dubai | Target role: ${job.title} at ${job.company}` : 'Availability: Immediate | Open to Abu Dhabi / Dubai | Seeking visa sponsorship';
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MUHAMMED MIKDAD UM - Resume</title>
+  <style>
+    /* ATS-friendly: single column, no tables, no icons/images, minimal styling */
+    :root { --text: #111; --muted: #444; --rule: #d0d0d0; }
+
+    html, body { background: #fff; }
+    body {
+      margin: 0;
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 11pt;
+      line-height: 1.35;
+    }
+
+    .page {
+      max-width: 8.5in;
+      margin: 0 auto;
+      padding: 0.6in;
+    }
+
+    h1 {
+      font-size: 18pt;
+      margin: 0 0 6px 0;
+      letter-spacing: 0.2px;
+    }
+
+    .contact {
+      margin: 0 0 10px 0;
+      color: var(--muted);
+    }
+    .contact a { color: inherit; text-decoration: none; }
+
+    .meta {
+      margin: 0 0 14px 0;
+      color: var(--muted);
+    }
+
+    h2 {
+      font-size: 12pt;
+      margin: 14px 0 6px 0;
+      padding-top: 8px;
+      border-top: 1px solid var(--rule);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+
+    h3 {
+      font-size: 11pt;
+      margin: 10px 0 2px 0;
+    }
+
+    .roleline {
+      margin: 0 0 6px 0;
+      color: var(--muted);
+    }
+
+    p { margin: 6px 0; }
+    ul { margin: 6px 0 8px 18px; padding: 0; }
+    li { margin: 3px 0; }
+
+    .label { font-weight: 700; }
+    .small { color: var(--muted); }
+
+    @media print {
+      /* Ensure clean print */
+      .page { padding: 0.5in; }
+      a { text-decoration: none; color: #000; }
+      h2 { page-break-after: avoid; }
+      ul, p { page-break-inside: avoid; }
+      @page { size: A4; margin: 0.5in; }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="page">
+    <header>
+      <h1>MUHAMMED MIKDAD UM</h1>
+      <p class="contact">
+        Abu Dhabi, UAE |
+        Phone: +971 52 624 5540 |
+        Email: <a href="mailto:mikplax@gmail.com">mikplax@gmail.com</a><br />
+        LinkedIn: <a href="https://linkedin.com/in/mikdaaad">linkedin.com/in/mikdaaad</a> |
+        Portfolio: <a href="https://mikdad.somberonyx.in">mikdad.somberonyx.in</a>
+      </p>
+      <p class="meta">
+        ${escapeHtml(focus)}
+      </p>
+    </header>
+
+    <section aria-label="Summary">
+      <h2>Summary</h2>
+      <p>
+        Full-Stack Software Engineer (B.Tech CSE, 2026) with hands-on experience shipping Next.js + TypeScript SaaS,
+        Supabase/PostgreSQL, and AWS deployments. Built an AI-enabled accounting/audit product with Gemini Vision
+        document extraction, LLM-assisted reconciliation, and secure Text-to-SQL. Scaled a production platform to
+        79,000+ active users and delivered a Flutter companion app. Immediate joiner.
+      </p>
+    </section>
+
+    <section aria-label="Technical Skills">
+      <h2>Technical Skills</h2>
+      <p><span class="label">Frontend:</span> Next.js, React, TypeScript, JavaScript (ES6+), HTML, CSS, Tailwind CSS</p>
+      <p><span class="label">Backend:</span> Node.js, Express.js, REST APIs, Supabase, PostgreSQL, SQL, Auth, RBAC, Webhooks</p>
+      <p><span class="label">Cloud/DevOps:</span> AWS (ECS, App Runner), Docker, CI/CD (Git-based), AWS Amplify</p>
+      <p><span class="label">AI / LLM:</span> Gemini Vision API, prompt engineering (few-shot), guardrails for Text-to-SQL, human-in-the-loop workflows</p>
+      <p><span class="label">Mobile:</span> Flutter, React Native</p>
+      <p><span class="label">Analytics:</span> Python, Tableau, Power BI</p>
+    </section>
+
+    <section aria-label="Experience">
+      <h2>Experience</h2>
+
+      <h3>Jsquare (Client: Astra Gold &amp; Diamonds) — Full-Stack Developer &amp; Team Lead</h3>
+      <p class="roleline">Remote (Mangalore, India) | Jan 2025 – Mar 2026</p>
+      <ul>
+        <li>
+          Scaled a Next.js + Supabase production platform from 45,000 to 79,000+ active users using optimized Postgres
+          design, RLS policies, triggers, and serverless functions.
+        </li>
+        <li>
+          Built referral/commission automation and integrated payment workflows with idempotent webhook handling
+          (Razorpay, PhonePe).
+        </li>
+        <li>
+          Shipped a Flutter mobile app (offline-first) and coordinated delivery with a small engineering team
+          (planning, reviews, releases).
+        </li>
+      </ul>
+
+      <h3>Trainity — Data Analyst Intern</h3>
+      <p class="roleline">Virtual (Bangalore, India) | Sep 2024 – Dec 2024</p>
+      <ul>
+        <li>
+          Delivered BI reporting using Python, SQL, Tableau/Power BI; ranked Top 7 of 1,000+ candidates in the program
+          (as awarded by the program).
+        </li>
+      </ul>
+    </section>
+
+    <section aria-label="Projects">
+      <h2>Projects</h2>
+
+      <h3>TrueLedge — AI-Enabled Accounting &amp; Audit SaaS | 2026</h3>
+      <p class="small">Live demo: somberonyx.in</p>
+      <ul>
+        <li>
+          Built a human-in-the-loop invoice ingestion pipeline using Gemini Vision to extract line items and draft
+          accounting entries.
+        </li>
+        <li>
+          Implemented a two-layer bank reconciliation approach: deterministic SQL matching + LLM fallback for
+          semantic/ambiguous narrations.
+        </li>
+        <li>
+          Developed a secure Text-to-SQL assistant over restricted read-only views to reduce SQL injection risk and
+          prevent cross-tenant data exposure.
+        </li>
+        <li><span class="label">Tech:</span> Next.js, TypeScript, Supabase (PostgreSQL), Express, Tailwind, AWS</li>
+      </ul>
+
+      <h3>Algorithmic Trading &amp; Backtesting Engine | 2026</h3>
+      <ul>
+        <li>
+          Built a Python-based backtesting + live execution workflow with WebSocket market data ingestion and risk
+          controls (dynamic stop-loss).
+        </li>
+        <li><span class="label">Tech:</span> Python, WebSockets, Next.js</li>
+      </ul>
+
+      <h3>E-Commerce Platforms (ahdaldoors.in, Terrific.fit) | Jan 2025 – Feb 2025</h3>
+      <ul>
+        <li>
+          Built Next.js e-commerce apps with JWT authentication, RBAC admin flows, and sales dashboarding.
+        </li>
+        <li><span class="label">Tech:</span> Next.js, JWT, RBAC, Payments</li>
+      </ul>
+    </section>
+
+    <section aria-label="Education">
+      <h2>Education</h2>
+      <p>
+        <span class="label">B.Tech, Computer Science</span> — Srinivas Institute of Technology (SIT), Mangalore | 2022 – 2026
+      </p>
+    </section>
+
+    <section aria-label="Certifications">
+      <h2>Certifications</h2>
+      <ul>
+        <li>Machine Learning Specialization — Stanford / DeepLearning.AI</li>
+        <li>Full Stack Web Development Bootcamp — Udemy</li>
+      </ul>
+    </section>
+
+    <section aria-label="Languages">
+      <h2>Languages</h2>
+      <p>English (Fluent) | Malayalam (Native) | Hindi (Fluent) | Kannada (Native)</p>
+    </section>
+  </main>
+</body>
+</html>`;
 }
 
 function printResume(job) {
