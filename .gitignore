@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Secrets -- never commit real credentials
+.env
+.env.*
+!.env.example
+
+# Pipeline artifacts
+out/
+*.log
+converted/
+
+# CAD samples (generated locally by scripts/gen_sample_dxf.py)
+samples/*.dxf
+samples/*.dwg

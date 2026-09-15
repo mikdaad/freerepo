@@ -1,0 +1,13 @@
+# --- Phase 1: DWG/DXF parsing -------------------------------------------------
+# DXF/DWG object model, tables, entity access and the `odafc` addon wrapper
+# around the ODA File Converter (external binary, see README).
+ezdxf>=1.1,<2
+
+# --- Phase 3: DeepSeek (OpenAI-compatible) client ------------------------------
+openai>=1.40
+
+# --- Configuration -------------------------------------------------------------
+python-dotenv>=1.0
+
+# --- Phase 1 fallback: Autodesk Platform Services (OSS + Model Derivative) ----
+requests>=2.31
