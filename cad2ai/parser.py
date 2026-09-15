@@ -190,6 +190,11 @@ def _table_len(doc: Any, attribute: str) -> int | None:
 def _import_odafc() -> Any:
     try:
         from ezdxf.addons import odafc  # type: ignore
+        
+        # LINK THE EXECUTABLE HERE:
+        # Check your C:\Program Files\ODA\ folder to confirm the exact version number
+        odafc.win_exec_path = r"C:\Program Files\ODA\ODAFileConverter\ODAFileConverter.exe"
+        
     except ImportError as exc:  # pragma: no cover - ezdxf too old / partial install
         raise DwgConverterNotInstalledError(
             f"the ezdxf odafc addon is not importable ({exc}); install ezdxf>=1.1",
