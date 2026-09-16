@@ -1,12 +1,7 @@
-import { Activity, Boxes, CircleDot, Layers, Ruler, ScanSearch } from "lucide-react";
+import { Activity, CircleDot, ScanLine } from "lucide-react";
 import { BlueprintBackground } from "@/components/dashboard/blueprint-bg";
-import { DataGaps } from "@/components/dashboard/data-gaps";
-import { DimensionTable } from "@/components/dashboard/dimension-table";
-import { FindingsPanel } from "@/components/dashboard/findings-panel";
-import { LayerTable } from "@/components/dashboard/layer-table";
-import { MetricHud } from "@/components/dashboard/metric-hud";
-import { StatusHeader } from "@/components/dashboard/status-header";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Workbench } from "@/components/dashboard/workbench";
+import { Badge } from "@/components/ui/badge";
 import { analysisStats, normalizeAnalysis, type Analysis } from "@/lib/analysis";
 import { loadAnalysisSource } from "@/lib/analysis-source";
 
@@ -211,24 +206,32 @@ export const dynamic = "force-dynamic";
 
 export default function SheetReviewPage() {
   const source = loadAnalysisSource();
-  const normalized = normalizeAnalysis(source.raw ?? SAMPLE_ANALYSIS);
-  // The origin/label/warnings are ingest metadata, not model output: they are
-  // attached here so every panel can say where its data came from.
-  const analysis: Analysis = {
-    ...normalized,
-    origin: source.origin === "file" ? "file" : "mock",
-    originLabel: source.origin === "file" ? source.label : "bundled sample payload (no analysis.json found)",
-    warnings: [...source.notes, ...normalized.warnings],
+
+  // Disk first: a real run always beats the bundled sample.
+  let real: Analysis | null = null;
+  if (source.raw !== null) {
+    const normalized = normalizeAnalysis(source.raw);
+    real = { ...normalized, origin: "file", originLabel: source.label, warnings: [...source.notes, ...normalized.warnings] };
+  } else if (source.notes.length > 0) {
+    // e.g. ANALYSIS_JSON pointed at an unreadable file: still show the sample, with the reason
+    console.warn("[dashboard] analysis.json could not be used:", source.notes.join("; "));
+  }
+
+  const sample: Analysis = {
+    ...normalizeAnalysis(SAMPLE_ANALYSIS),
+    origin: "mock",
+    originLabel: "bundled sample payload (no analysis.json found)",
   };
 
-  const stats = analysisStats(analysis);
+  // The header strip describes whichever dataset is on screen right now.
+  const preview = real ?? sample;
+  const stats = analysisStats(preview);
 
   return (
     <main className="relative min-h-screen">
       <BlueprintBackground />
 
       <div className="mx-auto w-full max-w-[1680px] space-y-4 px-3 py-4 sm:px-5 sm:py-6 lg:px-8">
-        {/* utility strip: what am I looking at, and is it real data? */}
         <div className="flex flex-wrap items-center justify-between gap-3 text-[11px]">
           <div className="flex items-center gap-2 font-mono uppercase tracking-[0.22em] text-muted-foreground">
             <Activity className="size-3.5 text-primary" />
@@ -236,59 +239,25 @@ export default function SheetReviewPage() {
             <span className="text-border">/</span>
             sheet review console
           </div>
-          <div className="flex flex-wrap items-center gap-3 font-mono text-muted-foreground">
-            <span className="inline-flex items-center gap-1.5 rounded-md border border-border/60 bg-muted/30 px-2 py-1">
-              <CircleDot
-                className={
-                  analysis.origin === "file" ? "size-3 text-neon-green" : "size-3 text-neon-amber"
-                }
-              />
-              {analysis.origin === "file" ? "live analysis.json" : "sample data"}
-            </span>
-            <span className="hidden sm:inline">
+          <div className="flex flex-wrap items-center justify-end gap-3 font-mono text-muted-foreground">
+            <Badge variant={real ? "ok" : "medium"} className="gap-1.5">
+              <CircleDot className="size-3" />
+              {real ? "analysis.json from disk" : "sample data"}
+            </Badge>
+            <span className="hidden md:inline">
               {stats.total} findings · {stats.blockers} blocking · {stats.evidenceLines} evidence refs
             </span>
           </div>
         </div>
 
-        <StatusHeader analysis={analysis} />
-        <MetricHud analysis={analysis} />
-
-        <Tabs defaultValue="critical" className="flex-col gap-0">
-          <TabsList className="w-full justify-start overflow-x-auto">
-            <TabsTrigger value="critical" count={stats.total} tone="high">
-              <ScanSearch className="size-3.5" />
-              Critical Findings
-            </TabsTrigger>
-            <TabsTrigger value="layers" count={analysis.layerFindings.length}>
-              <Layers className="size-3.5" />
-              Layer Analysis
-            </TabsTrigger>
-            <TabsTrigger value="dimensions" count={analysis.dimensionFindings.length}>
-              <Ruler className="size-3.5" />
-              Dimension Analysis
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="critical">
-            <FindingsPanel analysis={analysis} />
-          </TabsContent>
-          <TabsContent value="layers">
-            <LayerTable rows={analysis.layerFindings} />
-          </TabsContent>
-          <TabsContent value="dimensions">
-            <DimensionTable rows={analysis.dimensionFindings} />
-          </TabsContent>
-        </Tabs>
-
-        <DataGaps analysis={analysis} />
+        <Workbench initial={real} sample={sample} />
 
         <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-border/40 pt-4 text-[11px] text-muted-foreground">
           <span className="inline-flex items-center gap-1.5 font-mono">
-            <Boxes className="size-3.5" />
-            every finding cites a payload path; expand a finding to see the evidence block
+            <ScanLine className="size-3.5" />
+            every finding cites a payload path — expand it to see the evidence block
           </span>
-          <span className="font-mono">{analysis.drawing ?? "—"}</span>
+          <span className="font-mono truncate">{real ? real.originLabel : `POST /api/analyze · ${source.label}`}</span>
         </footer>
       </div>
     </main>

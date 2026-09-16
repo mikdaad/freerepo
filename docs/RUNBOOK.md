@@ -193,6 +193,34 @@ Exit codes are stable, so a wrapper can branch:
 `2` config, `3` unsupported DWG version, `4` parse/input, `5` Autodesk, `6` DeepSeek,
 `1` unexpected. Retry only `5`/`6` (and `1` once, after reading the log).
 
+### 4b. One drawing over HTTP (human in the loop)
+
+`server.py` calls `Pipeline.run` with nothing added to the extraction logic, so everything above
+still holds — it just moves "which drawing, which task" into a browser. Use it for ad-hoc reviews
+(and for the dashboard's drop zone); keep the loop above for whole sets.
+
+```bash
+pip install -r requirements.txt -r requirements-api.txt
+DEEPSEEK_API_KEY=sk-... uvicorn server:app --host 0.0.0.0 --port 8000
+
+curl -s localhost:8000/api/health | python -m json.tool | grep -A5 '"readiness"'
+curl -s "localhost:8000/api/health?probe=1" | jq '.deepseek.probe'   # one tiny completion: proves the key
+curl -s -F "file=@samples/demo.dxf" -F "task=sheet_review" -F "keep=1" localhost:8000/api/analyze \
+  | jq '{ok, mode, elapsed_s, verdict: .analysis.release_recommendation, artifacts: .artifact_urls}'
+```
+
+| knob | guidance |
+| --- | --- |
+| `CAD2AI_API_TIMEOUT_S` (900) | above a real run (70-80 s for DXF; longer if ODA must convert first), *below* your gateway's limit. A `504` releases the client, not the worker thread — the orphaned run still bills DeepSeek once. |
+| `CAD2AI_API_CONCURRENCY` (2) | one pipeline per slot; each slot is a DeepSeek call plus possibly an ODA subprocess. Raise it only if your rate limit and RAM back you. `429` + `Retry-After` is the answer when full. |
+| `CAD2AI_API_MAX_UPLOAD_MB` (64) | reject oversized files while streaming, before any parsing happens. |
+| `CAD2AI_API_KEEP` / `CAD2AI_API_ARTIFACT_DIR` | kept runs are drawings in `out/api-runs`: put them on a scratch volume and sweep the directory. |
+| `CAD2AI_CORS_ORIGINS` | the exact `scheme://host:port` of the dashboard. Do not widen it to `*`; use the regex knob per-environment if a preview URL changes. |
+
+There is no auth in the service: it trusts whoever can reach the port, and it returns the model's
+text verbatim (the dashboard, not the server, decides how to display it). Terminate TLS and
+authenticate at the edge.
+
 ---
 
 ## 5. Interpreting the artifacts

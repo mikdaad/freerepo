@@ -6,8 +6,17 @@ the severity HUD are at the top, and every finding expands into the exact payloa
 was derived from — so a disputed answer can be checked in seconds.
 
 ```
-out/<run>/analysis.json  ──▶  normalizeAnalysis()  ──▶  header gate · HUD · tabs (findings / layers / dimensions) · gap panels
+                                   ┌───────────────────────── service (../server.py) ─────────────────────────┐
+browser ── drop .dwg/.dxf ──▶ POST /api/analyze ──▶ ezdxf+odafc / APS ──▶ payload ──▶ DeepSeek ──▶ analysis.json
+                                   └──────────────────────────────────────────────────────────────────────────┘
+                                                        │
+   out/<run>/analysis.json ──▶ normalizeAnalysis() ──▶  header gate · HUD · tabs (findings / layers / dimensions) · gap panels
 ```
+
+Two ways to get data on screen, both landing in the same console:
+
+* **Read from disk** — the page picks up the last pipeline run with nothing running (`ANALYSIS_JSON=…`, `web/data/analysis.json`, or the newest `out/*/analysis.json`).
+* **Upload a drawing** — `Workbench` posts to the FastAPI service, walks the user through the 70-80 s of extraction while it waits, and renders the response as soon as it lands. The disk path is still the initial state, so a stale-but-real run beats an empty form.
 
 ## Quick start
 
@@ -15,6 +24,13 @@ out/<run>/analysis.json  ──▶  normalizeAnalysis()  ──▶  header gate 
 cd web
 npm install                      # or: pnpm install / yarn
 npm run dev                      # http://localhost:3000  (binds 0.0.0.0)
+```
+
+To use the upload flow as well, start the service in another terminal (from the repo root, in
+the Python venv — see the root README, "HTTP service"):
+
+```bash
+DEEPSEEK_API_KEY=sk-your-key uvicorn server:app --reload --host 0.0.0.0 --port 8000
 ```
 
 Production check (typecheck + build; this is what CI should run):
@@ -69,6 +85,54 @@ cd web && npm run dev          # now reads ../out/demo/analysis.json
 Without an API key, `analysis.json` cannot be produced (that is Phase 3), but you can still
 inspect the exact payload the model would receive: `python main.py analyze <file> --dry-run`.
 
+## The upload workbench (`components/dashboard/workbench.tsx`)
+
+`Workbench` is a four-state machine — `idle → processing → success | error` — and it is the only
+place that talks to the network. `page.tsx` stays a server component and hands it `initial`
+(disk data, if any) plus `sample`.
+
+* **idle** — drag-and-drop zone (`UploadPanel`): only `.dwg`/`.dxf` accepted, checked on drop *and*
+  in the file input, size checked against what `/api/health` reported, plus the run options
+  (task, brief, `dry run`, `keep artifacts`). A 415/413/422 is explained inline next to the field
+  that caused it; a dead backend turns the zone grey with a "check connection" retry instead of
+  letting you queue a doomed upload.
+* **processing** — `ProcessingPanel`, because a real sheet review takes ~75 s: an asymptotic bar
+  (it approaches 97 % and never lies about finishing), seven phases that advance on a schedule and
+  name the file being worked on — *Parsing DWG Binary… → Extracting Metadata… → Building Payload →
+  Running DeepSeek Analysis… → Normalising Verdict* — a `mm:ss` timer, the concurrency the server
+  reported, and a console readout. **Cancel** detaches the browser (abort the fetch); the panel
+  says so, because the service cannot preempt a Python thread.
+* **success** — the upload zone is gone. `ReviewConsole` renders the response with the same
+  components the disk path uses, under a summary strip: mode used, elapsed, payload size vs token
+  budget, usage tokens, truncation warnings, timings, and download buttons for
+  `analysis.json` / `report.md`.
+* **error** — the failure panel shows HTTP status, `error.code`, `message`, `hint`, `retryable`
+  and `details` verbatim from the server envelope, and the dropzone comes back so you can retry.
+  Toasts mirror the outcome.
+
+### Talking to the service
+
+`lib/api.ts` resolves the base once per call:
+
+1. `NEXT_PUBLIC_API_BASE` if set (absolute URL, or a path prefix such as `/backend`).
+2. `http://localhost:8000` when the page itself is on `localhost`/`127.0.0.1` — the direct, CORS-covered dev path.
+3. Otherwise same-origin `/api/*`, which `next.config.mjs` rewrites to `API_PROXY_TARGET`
+   (`http://127.0.0.1:8000` by default) — the path a proxied preview, container or VM takes,
+   where "localhost" would mean the user's laptop.
+
+```bash
+API_PROXY_TARGET= NEXT_PUBLIC_API_BASE=http://cad.internal:8000 npm run dev   # disable proxy, point at a host
+API_PROXY_TARGET=http://10.0.0.5:8000 npm run build                           # bake a different backend into a build
+```
+
+`analyzeDrawing()` never throws on a `{"ok": false}` body it can read: it raises `ApiError`
+carrying `status` + the server's `error` object, so the UI renders the server's own hint rather
+than inventing one. `resolveTask` mismatches (`unknown_task` with `known_tasks`), `busy` with
+`Retry-After`, and `extraction_timeout` all land in that panel.
+
+`fetchHealth()` runs on mount and on demand; `probe=1` asks the *server* to make one tiny DeepSeek
+completion, which is how you confirm a key without uploading 100 kB of drawing first.
+
 ### Data contract
 
 | field in `analysis.json`                                    | where it renders |
@@ -121,7 +185,10 @@ app/page.tsx                bundled SAMPLE_ANALYSIS (top of file) + page composi
 app/globals.css             light/dark token pairs, .code-surface/.hud-*, print + reduced-motion
 components/dashboard/       status-header · confidence-ring · metric-hud · findings-panel
                             layer-table · dimension-table · data-gaps · blueprint-bg
-components/ui/              card · badge · accordion · tabs · input   (shadcn, vendored)
+                            workbench · upload-panel · processing-panel · payload-summary
+                            review-console (the shared console body: props in, DOM out)
+components/ui/              card · badge · accordion · tabs · input · toast   (shadcn, vendored)
+lib/api.ts                  base-URL resolution, health/analyze/artifact calls, ApiError
 lib/analysis.ts             types + normalizeAnalysis + analysisStats  (the defensive layer)
 lib/analysis-source.ts      server-side resolution of analysis.json
 lib/utils.ts                cn/thousands/percent/truncate
@@ -133,5 +200,10 @@ next.config.mjs             ALLOWED_DEV_ORIGINS escape hatch for proxies/preview
 
 - `npm run dev` binds `0.0.0.0:3000`. Behind a host-based proxy, if the dev server refuses
   the origin: `ALLOWED_DEV_ORIGINS=3000-your-sandbox.e2b.app npm run dev`.
+- `next build` and `next dev` fight over `.next`: stop the dev server before building, or the
+  build can hang.
+- `/api/*` is proxied to the service by a rewrite (`API_PROXY_TARGET`), so a production `next start`
+  needs no extra web server; `API_PROXY_TARGET=` disables it and `NEXT_PUBLIC_API_BASE` wins outright.
+  `POST /api/analyze` is `multipart/form-data` streamed by the same route — curl it through :3000 to prove it.
 - No `next/font` / remote assets: the app builds and runs with no network at all.
 - `tsconfig.json` uses `@/*` → repo root of `web/`, matching `components.json` aliases.

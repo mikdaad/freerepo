@@ -204,15 +204,94 @@ can tell "bad input" from "retry later":
 `--json` reports failures as `{"ok": false, "error": {...}}` on stdout, so a queue worker
 never has to parse prose.
 
+## HTTP service (`server.py`)
+
+The same pipeline behind one POST endpoint, so a browser (or a queue worker, or CI) can hand
+it a drawing and read the answer off the wire. `server.py` deliberately owns **nothing** about
+extraction: it stages the upload in a private temp dir, calls
+`cad2ai.pipeline.Pipeline.run(..., out_dir=…)` on Starlette's threadpool, returns the
+`analysis.json` object with provenance, and deletes the staged file in a `finally`. An answer
+obtained over HTTP is therefore byte-for-byte reproducible from the CLI.
+
+```bash
+# 1. dependencies (the pipeline's requirements plus three service extras)
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt -r requirements-api.txt      # fastapi, uvicorn[standard], python-multipart
+
+# 2. run it (CORS is already opened for http://localhost:3000)
+DEEPSEEK_API_KEY=sk-your-key uvicorn server:app --reload --host 0.0.0.0 --port 8000
+#    ... or: python server.py            (reads CAD2AI_API_HOST/PORT/RELOAD)
+
+# 3. prove it is alive, then analyse something
+curl -s localhost:8000/api/health | python -m json.tool | head -30
+curl -s localhost:8000/api/health?probe=1 | python -c 'import json,sys; print(json.load(sys.stdin)["deepseek"]["probe"])'
+curl -s -F "file=@samples/demo.dxf" -F "task=sheet_review" localhost:8000/api/analyze | tee /tmp/api.json | head -20
+curl -s -F "file=@drawings/A-101.dwg" -F "keep=1" localhost:8000/api/analyze | python -c 'import json,sys; print(json.load(sys.stdin)["artifact_urls'])'
+```
+
+| route | what it is for |
+| --- | --- |
+| `GET /api/health` | backends present (ODA, xvfb), DeepSeek model/base-URL/key-presence, APS config, limits, active jobs, task list, `readiness`. `?probe=1` makes one ~15-token completion so an operator can test a key without a drawing. |
+| `POST /api/analyze` | multipart upload → the `analysis.json` body. Fields: `file` (required), `task`, `brief`, `fallback` (`auto`\|`off`\|`oda`\|`aps`), `dry_run`, `keep`, `include_markdown`, `max_payload_tokens`. |
+| `GET /api/runs/{run_id}/{artifact}` | kept artifacts of a run: `analysis.json`, `payload.json`, `cad_model.json`, `run_manifest.json`, `report.md` (the pipeline's `analysis.md`). |
+
+Errors always come back as `{"ok": false, "error": {message, hint, retryable, exit_code, code,
+status, details}}` — the CLI's vocabulary with an HTTP code attached, which is exactly what the
+dashboard prints in its failure panel:
+
+| HTTP | `code` | when |
+| --- | --- | --- |
+| `400` | `file_missing`, `empty_file` | no `file` part, or a zero-byte upload |
+| `413` | `file_too_large` | over `CAD2AI_API_MAX_UPLOAD_MB` (checked on the stream, not after buffering) |
+| `415` | `unsupported_file_type`, `unsupported_dwg_version` | not `.dwg`/`.dxf`, or a DWG older than the sentinel floor |
+| `422` | `unknown_task` (+`known_tasks`), `bad_fallback`, `bad_payload_budget`, `corrupt_cad_file` | field values the service will not act on |
+| `429` | `busy`, `deepseek_rate_limit` | concurrency gate full (`Retry-After` set) or DeepSeek throttled us |
+| `502` | any DeepSeek/ODA/APS upstream failure | auth, balance, truncated/unparsable answer, translator failure |
+| `503` | `missing_environment_variable`, `oda_not_installed` | the service cannot do this job yet |
+| `504` | `extraction_timeout` | over `CAD2AI_API_TIMEOUT_S` |
+| `500` | `internal_error`, `staging_failed` | unexpected; log has the traceback |
+
+A `504` answers the client but cannot preempt the Python thread: the run continues to
+completion and is logged as orphaned, which is why `CAD2AI_API_TIMEOUT_S` should sit *below*
+your gateway's timeout. `429` responses carry `Retry-After`.
+
+| env var | default | meaning |
+| --- | --- | --- |
+| `CAD2AI_API_MAX_UPLOAD_MB` | `64` | upload ceiling, enforced while streaming |
+| `CAD2AI_API_TIMEOUT_S` | `900` | wall-clock limit per job (a full sheet review is 70-80 s; a DWG needing ODA is longer) |
+| `CAD2AI_API_CONCURRENCY` | `2` | parallel pipeline runs, then `429` |
+| `CAD2AI_CORS_ORIGINS` | `http://localhost:3000` | comma-separated allow-list |
+| `CAD2AI_CORS_ORIGIN_REGEX` | – | opt-in regex if you must, e.g. `^https://[a-z0-9-]+\.example\.com$` |
+| `CAD2AI_API_ARTIFACT_DIR` | `out/api-runs` | where `keep=1` runs land |
+| `CAD2AI_API_KEEP` | `0` | keep artifacts even when the client did not ask |
+| `CAD2AI_API_HOST` / `_PORT` / `_RELOAD` | `0.0.0.0` / `8000` / off | used by `python server.py` |
+
+Every pipeline knob (`DEEPSEEK_*`, `CAD2AI_MAX_PAYLOAD_TOKENS`, `ODA_TIMEOUT`, …) applies here too.
+
+**No key, no ODA converter, no Autodesk app?** The stack still runs end to end against a stub
+model that returns a canned sheet review — development only, no auth, no TLS:
+
+```bash
+python scripts/dev_stub_deepseek.py &                    # 127.0.0.1:8123, STUB_DELAY_S to slow it down
+DEEPSEEK_API_KEY=sk-stub-not-a-real-key \
+DEEPSEEK_BASE_URL=http://127.0.0.1:8123 \
+uvicorn server:app --host 0.0.0.0 --port 8000
+```
+
+The service is a thin, unauthenticated wrapper — put it behind your own auth, and keep
+`CAD2AI_API_KEEP` off unless something is cleaning `out/api-runs`, because drawings are the
+payload there.
+
 ## Dashboard (`web/`)
 
 An optional Next.js console for the `analysis.json` a sheet review produces: release gate,
 severity HUD, searchable findings with the payload paths each finding cites, and layer /
 dimension tables. Dark by default, no network assets, reads `out/<run>/analysis.json`
-automatically.
+automatically — and, with the service above running, drags a `.dwg`/`.dxf` straight from the
+browser: dropzone → live phase panel → the upload zone is replaced by the console.
 
 ```bash
-cd web && npm install && npm run dev        # http://localhost:3000
+cd web && npm install && npm run dev        # http://localhost:3000, proxies /api/* to :8000
 ```
 
 See [`web/README.md`](web/README.md) for the data contract and how to point it at another file.
@@ -241,7 +320,7 @@ Composable pieces: `parser.load_drawing`, `structurer.build_cad_model`,
 
 ```bash
 pip install -r requirements-dev.txt
-python -m pytest            # 268 tests, all offline (~6 s)
+python -m pytest            # 300 tests, all offline (~7 s)
 ```
 
 The suite builds real DXF documents with `ezdxf`, drives the ODA and Autodesk paths with
@@ -277,11 +356,14 @@ cad2ai/
   ai_client.py    Phase 3: DeepSeek via the OpenAI SDK (retry, usage, JSON repair)
   pipeline.py     orchestration + artifacts + markdown rendering
   cli.py          argparse front-end (doctor/extract/analyze/payload/prompt/aps)
-main.py           entry point
-web/              Next.js review console (App Router, Tailwind, shadcn primitives, framer-motion)
+main.py           entry point (CLI)
+server.py         FastAPI service in front of the same pipeline (see "HTTP service")
+requirements-api.txt  service extras: fastapi, uvicorn[standard], python-multipart
+web/              Next.js review console + upload workbench (App Router, Tailwind, shadcn primitives, framer-motion)
 scripts/gen_sample_dxf.py  sample drawing generator (arch / mech / mixed)
+scripts/dev_stub_deepseek.py  OpenAI-shaped stub for offline end-to-end runs (dev only)
 docs/RUNBOOK.md   operator guide
-tests/            268 offline tests
+tests/            300 offline tests (32 of them the HTTP layer)
 ```
 
 ## Security
@@ -289,6 +371,9 @@ tests/            268 offline tests
 * Secrets are only read from the environment; `Settings.to_safe_dict()` masks anything that
   looks like a key and that is what lands in `run_manifest.json`.
 * `.env` is git-ignored (`.env.example` is the template).
+* `server.py` has no auth of its own and writes uploaded drawings to a temp dir that is
+  removed per request; artifacts survive only if you ask for them (`keep=1`). Authenticate it
+  at the edge, and do not expose it to the open internet.
 * Drawings sent to Autodesk are stored in your own bucket with a `transient` policy;
   `--delete-after` removes the object once the manifest is fetched. Model Derivative and
   DeepSeek both receive *derived* data, never your original file, unless you use the APS path.
