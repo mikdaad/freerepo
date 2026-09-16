@@ -1,0 +1,187 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Theme tokens.
+ *
+ * Two font stacks resolve from the OS, so there is no webfont request and the
+ * dashboard renders the same offline, in CI and in an air-gapped office.
+ * Override `--font-sans` / `--font-mono` if you self-host Inter / JetBrains Mono.
+ *
+ * Values are raw HSL channels (not `hsl(...)`) because `tailwind.config.ts`
+ * wraps them as `hsl(var(--token) / <alpha-value>)` to keep opacity modifiers
+ * (`bg-neon-red/12`) working.
+ *
+ * Dark is the DEFAULT: `app/layout.tsx` sets `class="dark"` on <html>. Removing
+ * that class yields the light palette below — useful for printing a review.
+ */
+:root {
+  --font-sans: "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --radius: 0.6rem;
+
+  color-scheme: light;
+  --background: 210 40% 97%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --primary: 199 89% 38%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 210 40% 94%;
+  --secondary-foreground: 222 47% 11%;
+  --muted: 210 40% 94%;
+  --muted-foreground: 215 16% 40%;
+  --accent: 210 40% 92%;
+  --accent-foreground: 222 47% 11%;
+  --destructive: 0 72% 44%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 214 32% 84%;
+  --input: 214 32% 82%;
+  --ring: 199 89% 38%;
+
+  --neon-red: 350 85% 44%;
+  --neon-amber: 30 92% 40%;
+  --neon-cyan: 199 89% 36%;
+  --neon-green: 152 68% 30%;
+  --neon-violet: 266 60% 48%;
+  --grid-line: 214 40% 86%;
+}
+
+.dark {
+  color-scheme: dark;
+  --background: 220 45% 4%;
+  --foreground: 210 40% 96%;
+  --card: 220 38% 7%;
+  --card-foreground: 210 40% 96%;
+  --popover: 220 40% 6%;
+  --popover-foreground: 210 40% 96%;
+  --primary: 188 92% 58%;
+  --primary-foreground: 220 60% 6%;
+  --secondary: 220 26% 14%;
+  --secondary-foreground: 210 30% 92%;
+  --muted: 220 26% 12%;
+  --muted-foreground: 214 18% 66%;
+  --accent: 220 28% 16%;
+  --accent-foreground: 210 30% 96%;
+  --destructive: 0 78% 56%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 216 24% 20%;
+  --input: 216 24% 17%;
+  --ring: 188 92% 58%;
+
+  --neon-red: 350 96% 65%;
+  --neon-amber: 36 98% 60%;
+  --neon-cyan: 188 96% 62%;
+  --neon-green: 152 78% 52%;
+  --neon-violet: 266 88% 72%;
+  --grid-line: 214 40% 14%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html,
+  body {
+    @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: hsl(var(--primary) / 0.35);
+  }
+
+  /* Instrument-grade thin scrollbars */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border: 3px solid transparent;
+    background-clip: content-box;
+    border-radius: 999px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+    background-clip: content-box;
+  }
+
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring) / 0.7);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /*
+   * Monospace data surface for `evidence`: reads like a terminal readout rather
+   * than prose, which is the whole point — these are JSON paths from the payload.
+   */
+  .code-surface {
+    @apply rounded-md border border-border/70 font-mono text-[12.5px] leading-relaxed;
+    background-color: hsl(var(--background));
+    background-image: linear-gradient(to right, hsl(var(--grid-line) / 0.5) 1px, transparent 1px);
+    background-size: 22px 100%;
+    color: hsl(var(--foreground) / 0.9);
+  }
+
+  .hud-label {
+    @apply font-mono text-[10px] uppercase text-muted-foreground;
+    letter-spacing: 0.22em;
+  }
+
+  .hud-value {
+    @apply font-mono text-3xl font-semibold leading-none tracking-tight tabular-nums lg:text-4xl;
+    color: hsl(var(--foreground));
+  }
+
+  .grid-panel {
+    background-image: linear-gradient(to right, hsl(var(--grid-line) / 0.35) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--grid-line) / 0.35) 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
+
+  /* A 1px rule that fades out at both ends: separates HUD groups without a hard border. */
+  .rule-fade {
+    background: linear-gradient(to right, transparent, hsl(var(--border)), transparent);
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  :root {
+    color-scheme: light;
+  }
+  .dark {
+    /* the console is dark; a printout should not be */
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --muted: 210 40% 95%;
+    --muted-foreground: 215 16% 35%;
+    --border: 214 20% 75%;
+    --grid-line: 214 20% 90%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

@@ -204,6 +204,19 @@ can tell "bad input" from "retry later":
 `--json` reports failures as `{"ok": false, "error": {...}}` on stdout, so a queue worker
 never has to parse prose.
 
+## Dashboard (`web/`)
+
+An optional Next.js console for the `analysis.json` a sheet review produces: release gate,
+severity HUD, searchable findings with the payload paths each finding cites, and layer /
+dimension tables. Dark by default, no network assets, reads `out/<run>/analysis.json`
+automatically.
+
+```bash
+cd web && npm install && npm run dev        # http://localhost:3000
+```
+
+See [`web/README.md`](web/README.md) for the data contract and how to point it at another file.
+
 ## Library use
 
 ```python
@@ -265,6 +278,7 @@ cad2ai/
   pipeline.py     orchestration + artifacts + markdown rendering
   cli.py          argparse front-end (doctor/extract/analyze/payload/prompt/aps)
 main.py           entry point
+web/              Next.js review console (App Router, Tailwind, shadcn primitives, framer-motion)
 scripts/gen_sample_dxf.py  sample drawing generator (arch / mech / mixed)
 docs/RUNBOOK.md   operator guide
 tests/            268 offline tests
