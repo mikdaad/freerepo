@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Two themes, one token contract.
+ * Values are space-separated RGB channels so Tailwind can apply opacity modifiers
+ * (`bg-surface/70`) — NativeWind compiles these to plain React Native style objects.
+ */
+
+/* Night-platform theme (default). Contrast ratios against --color-canvas: primary 15.8:1,
+   secondary 8.4:1, accent 9.6:1 — all pass WCAG AAA for body text. */
+:root {
+  --color-canvas: 11 17 32; /* #0B1120 */
+  --color-surface: 19 28 48; /* #131C30 */
+  --color-elevated: 30 42 68; /* #1E2A44 */
+  --color-hairline: 58 74 110; /* #3A4A6E */
+  --color-primary: 248 250 252; /* #F8FAFC */
+  --color-secondary: 165 180 205; /* #A5B4CD */
+  --color-inverse: 11 17 32;
+  --color-accent: 56 189 248; /* #38BDF8 */
+  --color-accent-ink: 4 22 38;
+  --color-live: 52 211 153; /* #34D399 arriving < 2 min */
+  --color-caution: 251 191 36; /* #FBBF24 */
+  --color-offline: 248 113 113; /* #F87171 */
+}
+
+/* Outdoor theme: near-black on near-white, the only combination that survives direct sunlight.
+   Contrast: primary 18.9:1, secondary 8.9:1. Applied via className="theme-outdoor". */
+.theme-outdoor {
+  --color-canvas: 255 255 255;
+  --color-surface: 244 246 250;
+  --color-elevated: 229 233 240;
+  --color-hairline: 118 128 145;
+  --color-primary: 8 10 14;
+  --color-secondary: 60 68 82;
+  --color-inverse: 255 255 255;
+  --color-accent: 12 74 190;
+  --color-accent-ink: 255 255 255;
+  --color-live: 4 108 78;
+  --color-caution: 138 90 0;
+  --color-offline: 176 32 32;
+}

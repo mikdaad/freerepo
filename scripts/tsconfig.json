@@ -1,0 +1,14 @@
+{
+  // Node-side type checking for the verification harness.
+  //
+  // Kept separate from the app tsconfig on purpose: `@types/node` declares globals (setTimeout
+  // returning a Timeout, Buffer, require, ...) that must not leak into React Native code. The app
+  // is type-checked by `npm run typecheck`; the harness by `npm run typecheck:scripts`.
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "noEmit": true
+  },
+  "include": ["./**/*.ts", "../src/**/*.ts", "../types/**/*.d.ts"],
+  "exclude": []
+}
