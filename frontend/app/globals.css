@@ -1,0 +1,90 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --primary: 240 5.9% 10%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --success: 142 71% 38%;
+    --success-foreground: 0 0% 100%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 240 5.9% 10%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 240 5.9% 10%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 50.6%;
+    --destructive-foreground: 0 0% 98%;
+    --success: 142 71% 38%;
+    --success-foreground: 0 0% 100%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 240 4.9% 83.9%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Minimal styling for the DeepSeek-drafted report (no typography plugin needed) */
+.markdown-body h1 {
+  @apply mb-3 mt-1 text-xl font-semibold;
+}
+.markdown-body h2 {
+  @apply mb-2 mt-5 text-base font-semibold;
+}
+.markdown-body h3 {
+  @apply mb-1 mt-4 text-sm font-semibold;
+}
+.markdown-body p {
+  @apply mb-2 leading-relaxed;
+}
+.markdown-body ul,
+.markdown-body ol {
+  @apply mb-2 list-inside list-disc space-y-0.5;
+}
+.markdown-body table {
+  @apply my-2 w-full border-collapse text-xs;
+}
+.markdown-body th,
+.markdown-body td {
+  @apply border border-border px-2 py-1 text-left;
+}
+.markdown-body blockquote {
+  @apply my-2 border-l-2 border-border pl-3 text-muted-foreground;
+}
+.markdown-body code {
+  @apply rounded bg-muted px-1 font-mono text-xs;
+}
