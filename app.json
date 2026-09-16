@@ -1,0 +1,80 @@
+{
+  "expo": {
+    "name": "Transit Pulse",
+    "slug": "transit-pulse",
+    "scheme": "transitpulse",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.transitpulse.app",
+      "infoPlist": {
+        "UIBackgroundModes": ["location", "fetch"]
+      }
+    },
+    "android": {
+      "package": "com.transitpulse.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#0B1120",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.RECEIVE_BOOT_COMPLETED"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-sqlite",
+        {
+          "enableFTS": false,
+          "useSQLCipher": false
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Transit Pulse uses your location to rank nearby stops and show departure boards for where you are right now.",
+          "locationAlwaysAndWhenInUsePermission": "Transit Pulse needs background location so it can wake you up shortly before you reach your stop, even when the app is closed.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#38BDF8",
+          "defaultChannel": "transit-alarms",
+          "mode": "production"
+        }
+      ],
+      "expo-task-manager"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "databaseName": "transit.db",
+      "syncPageSize": 500
+    }
+  }
+}
