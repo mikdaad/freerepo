@@ -1,0 +1,15 @@
+# Orchestration backend — Hybrid CAD Compliance System
+fastapi>=0.115,<1.0
+uvicorn[standard]>=0.32
+python-multipart>=0.0.12
+pydantic>=2.9
+pydantic-settings>=2.6
+
+# AI engine — DeepSeek is consumed through the standard OpenAI SDK
+openai>=1.55
+
+# Phase 3 — deterministic geometry math
+shapely>=2.0
+
+# Supabase / PostgreSQL persistence (optional but recommended)
+psycopg[binary]>=3.2

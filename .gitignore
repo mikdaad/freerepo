@@ -1,0 +1,22 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+backend/.env
+
+# --- .NET ---
+cad-engine/**/bin/
+cad-engine/**/obj/
+*.user
+
+# --- Node / Next.js ---
+node_modules/
+.next/
+out/
+frontend/.env.local
+frontend/.env*.local
+
+# --- Misc ---
+.DS_Store
+*.log
