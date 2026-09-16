@@ -1,0 +1,11 @@
+# HTTP service in front of the pipeline (server.py).
+#
+#   pip install -r requirements.txt -r requirements-api.txt
+#   uvicorn server:app --host 0.0.0.0 --port 8000
+#
+# The core pipeline dependencies live in requirements.txt; this file only adds
+# what the API layer needs.
+fastapi>=0.111
+uvicorn[standard]>=0.30
+# Form fields + UploadFile both require the multipart parser to be installed.
+python-multipart>=0.0.9

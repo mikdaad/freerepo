@@ -1,0 +1,13 @@
+# dependencies / build output
+node_modules/
+.next/
+out/
+build/
+*.tsbuildinfo
+
+# generated data: drop an analysis.json here only if you want a fixed demo
+data/analysis.json
+
+# local env
+.env
+.env*.local
