@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XORVA — Architecture Review &amp; Solo-Developer Strategy</title>
+<style>
+  :root {
+    --ink: #1a2233;
+    --ink-soft: #46536b;
+    --muted: #6b7688;
+    --line: #e3e7ee;
+    --bg: #f6f7fa;
+    --card: #ffffff;
+    --accent: #3b4cca;
+    --accent-soft: #eef0fc;
+    --good: #187a4b;
+    --good-bg: #e6f5ec;
+    --warn: #a06a00;
+    --warn-bg: #fdf3dd;
+    --bad: #b03030;
+    --bad-bg: #fbeaea;
+    --code-bg: #f0f2f7;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.65;
+    font-size: 16px;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 0 24px 96px; }
+
+  /* ---------- header ---------- */
+  header.hero {
+    background: linear-gradient(135deg, #1c2547 0%, #2b3a8f 55%, #3b4cca 100%);
+    color: #fff;
+    padding: 56px 24px 48px;
+    margin-bottom: 40px;
+  }
+  .hero-inner { max-width: 980px; margin: 0 auto; }
+  .hero .kicker {
+    text-transform: uppercase; letter-spacing: 2.5px; font-size: 12px;
+    font-weight: 700; color: #aab6ff; margin-bottom: 14px;
+  }
+  .hero h1 { font-size: 34px; line-height: 1.25; font-weight: 800; margin-bottom: 12px; }
+  .hero p.sub { font-size: 17px; color: #d5dbf7; max-width: 760px; }
+  .hero .meta {
+    margin-top: 22px; font-size: 13.5px; color: #b9c3f2;
+    display: flex; flex-wrap: wrap; gap: 18px;
+  }
+  .hero .meta span strong { color: #fff; font-weight: 600; }
+
+  /* ---------- nav ---------- */
+  nav.toc {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 20px 26px; margin-bottom: 40px; box-shadow: 0 1px 3px rgba(20,30,60,.05);
+  }
+  nav.toc h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 1.8px; color: var(--muted); margin-bottom: 10px; }
+  nav.toc ol { padding-left: 22px; columns: 2; column-gap: 40px; }
+  nav.toc li { margin: 4px 0; break-inside: avoid; }
+  nav.toc a { color: var(--accent); text-decoration: none; font-weight: 500; }
+  nav.toc a:hover { text-decoration: underline; }
+
+  /* ---------- sections ---------- */
+  section { margin-bottom: 52px; }
+  h2.sec {
+    font-size: 26px; font-weight: 800; margin-bottom: 6px;
+    padding-top: 8px; border-top: 3px solid var(--accent); padding-top: 18px;
+  }
+  h2.sec .num { color: var(--accent); margin-right: 10px; }
+  p.lede { color: var(--ink-soft); font-size: 17px; margin-bottom: 22px; max-width: 860px; }
+  h3 { font-size: 19px; margin: 30px 0 12px; font-weight: 700; }
+  h4 { font-size: 16px; margin: 22px 0 8px; font-weight: 700; }
+  p { margin-bottom: 14px; }
+  ul, ol { margin: 0 0 16px 24px; }
+  li { margin: 5px 0; }
+  strong { color: var(--ink); }
+  code {
+    font-family: "SF Mono", SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+    background: var(--code-bg); border: 1px solid var(--line);
+    border-radius: 4px; padding: 1px 6px; font-size: 13.5px;
+  }
+  pre.prompt {
+    background: #1d2438; color: #e7ebff; padding: 18px 20px; border-radius: 10px;
+    overflow-x: auto; font-size: 13.5px; line-height: 1.6; margin: 14px 0 20px;
+    font-family: "SF Mono", SFMono-Regular, Consolas, Menlo, monospace;
+  }
+
+  /* ---------- cards ---------- */
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 24px 28px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(20,30,60,.05);
+  }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; }
+  @media (max-width: 760px) { .grid2, .grid3 { grid-template-columns: 1fr; } nav.toc ol { columns: 1; } }
+
+  /* ---------- verdict boxes ---------- */
+  .verdict {
+    border-radius: 12px; padding: 20px 24px; margin: 18px 0 8px;
+    border: 1px solid; display: flex; gap: 16px; align-items: flex-start;
+  }
+  .verdict .icon { font-size: 26px; line-height: 1.2; }
+  .verdict.good { background: var(--good-bg); border-color: #bfe3cd; }
+  .verdict.warn { background: var(--warn-bg); border-color: #eed9a8; }
+  .verdict.bad  { background: var(--bad-bg);  border-color: #efc4c4; }
+  .verdict h4 { margin: 0 0 4px; font-size: 16px; }
+  .verdict.good h4 { color: var(--good); }
+  .verdict.warn h4 { color: var(--warn); }
+  .verdict.bad h4 { color: var(--bad); }
+  .verdict p { margin: 0; font-size: 14.5px; color: var(--ink-soft); }
+
+  /* ---------- tables ---------- */
+  table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; background: var(--card);
+          border: 1px solid var(--line); border-radius: 10px; overflow: hidden; font-size: 14.5px; }
+  th { background: #f0f2f8; text-align: left; padding: 11px 14px; font-size: 13px;
+       text-transform: uppercase; letter-spacing: .6px; color: var(--ink-soft); border-bottom: 2px solid var(--line); }
+  td { padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  tr:nth-child(even) td { background: #fafbfd; }
+
+  .badge {
+    display: inline-block; padding: 2px 10px; border-radius: 999px;
+    font-size: 12px; font-weight: 700; white-space: nowrap;
+  }
+  .b-low  { background: var(--good-bg); color: var(--good); }
+  .b-med  { background: var(--warn-bg); color: var(--warn); }
+  .b-high { background: var(--bad-bg);  color: var(--bad); }
+  .b-info { background: var(--accent-soft); color: var(--accent); }
+
+  .callout {
+    border-left: 4px solid var(--accent); background: var(--accent-soft);
+    padding: 16px 20px; border-radius: 0 10px 10px 0; margin: 20px 0; font-size: 15px;
+  }
+  .callout.warn { border-color: #d99a1d; background: var(--warn-bg); }
+  .callout strong:first-child { display: block; margin-bottom: 4px; }
+
+  .footnote { font-size: 13px; color: var(--muted); }
+  a { color: var(--accent); }
+  footer {
+    border-top: 1px solid var(--line); margin-top: 60px; padding-top: 24px;
+    font-size: 13.5px; color: var(--muted);
+  }
+  @media print {
+    header.hero { background: #fff; color: var(--ink); }
+    .hero p.sub, .hero .meta { color: var(--ink-soft); }
+    body { background: #fff; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <div class="kicker">Architecture Review · Commercial Analysis · Execution Strategy</div>
+    <h1>XORVA — Feasibility, Market Viability &amp; Solo-Developer Roadmap</h1>
+    <p class="sub">A critical review of the <em>XORVA Master Development Lifecycle and Execution Plan</em>
+    (21 phases, ~170 tasks): a metadata-driven, multi-tenant ERP-grade platform with a deterministic
+    contract compiler, generic execution runtime, web + mobile renderers, an AI Command Plane, and
+    air-gapped distribution.</p>
+    <div class="meta">
+      <span><strong>Reviewed:</strong> 2026-09-17</span>
+      <span><strong>Stack:</strong> Next.js · React Native/Expo · PostgreSQL/Supabase · Python AI</span>
+      <span><strong>Perspective:</strong> solo founder/developer</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#summary">Executive Summary</a></li>
+    <li><a href="#feasibility">1 · Feasibility Assessment</a></li>
+    <li><a href="#commercial">2 · Commercial Viability</a></li>
+    <li><a href="#challenges">3 · Challenges &amp; Solutions</a></li>
+    <li><a href="#solo">4 · Solo Developer Strategy &amp; AI Acceleration</a></li>
+    <li><a href="#sources">Sources</a></li>
+  </ol>
+</nav>
+
+<!-- ================= EXEC SUMMARY ================= -->
+<section id="summary">
+  <h2 class="sec"><span class="num">§</span>Executive Summary</h2>
+  <div class="grid2">
+    <div class="card">
+      <h4>🏗️ Feasibility</h4>
+      <p style="font-size:14.5px; margin:0;">The architecture is <strong>technically sound and unusually mature</strong> — security-first sequencing, a deterministic compiler as the trust boundary, and AI deliberately last. The risk is not the engineering; it is <strong>timescale</strong>: this is a 3–5-year team plan. Solo with AI assistance, Phases 0–10 (the first sellable product) are achievable in roughly <strong>9–14 months</strong>; the full plan is <strong>24–36+ months</strong>.</p>
+    </div>
+    <div class="card">
+      <h4>💶 Commercial Viability</h4>
+      <p style="font-size:14.5px; margin:0;">The markets are large and growing (low-code ≈ <strong>$44.5B</strong>; fleet-management software alone <strong>$28B → $56B by 2030</strong>). But the document has <strong>zero go-to-market content</strong>. Verdict: viable — <strong>if you sell solutions first and the platform second</strong>. Do not try to sell "the platform" to governments or enterprises as a solo vendor.</p>
+    </div>
+    <div class="card">
+      <h4>⚠️ Top Challenges</h4>
+      <p style="font-size:14.5px; margin:0;">(1) DSL design risk — the contract language can be too weak or too restrictive; (2) JSONB performance at ERP scale; (3) scope creep — the plan includes mobile, government hardening and air-gap <em>before launch</em>; (4) enterprise/gov sales cycles of 6–18 months; (5) solo support burden for self-hosted customers.</p>
+    </div>
+    <div class="card">
+      <h4>🚀 Solo Strategy</h4>
+      <p style="font-size:14.5px; margin:0;">Build horizontally, <strong>sell vertically</strong>. Reach Milestone D (dynamic web UI) in ~10–12 months, sign 1–2 design partners in Fleet or Audit during build, then productize. Use <strong>Claude for in-repo engineering</strong> and <strong>ChatGPT for specs, critique, and business work</strong>, treating the doc's per-task "Done when" criteria as AI acceptance tests. Details in <a href="#solo">Section 4</a>.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 1. FEASIBILITY ================= -->
+<section id="feasibility">
+  <h2 class="sec"><span class="num">1</span>Feasibility Assessment</h2>
+  <p class="lede">Short answer: <strong>yes, the phases are technically achievable</strong> — the design reflects lessons learned from real metadata-driven platforms (Salesforce's metadata engine, OutSystems/Mendix, the well-known pitfalls of EAV/JSONB storage). The danger is not <em>can it be built</em>, but <em>can one person build all of it before running out of runway</em>.</p>
+
+  <h3>1.1 What the document gets right</h3>
+  <div class="card">
+    <ul>
+      <li><strong>Security-first sequencing.</strong> Data plane and tenant isolation (Phases 1–2) precede any dynamic execution, and the plan explicitly forbids starting dynamic work until the cross-tenant isolation suite passes. This is the correct order and rare in founder plans.</li>
+      <li><strong>Deterministic compiler as the trust boundary (Phase 5).</strong> AI and users never touch the runtime directly — everything passes through parse → semantic validation → security linting → canonicalization → hash. This is the modern, correct pattern for LLM-generated configuration and is the single strongest architectural decision in the document.</li>
+      <li><strong>AI deliberately late (Phase 14) with a human approval gate.</strong> "AI compromise ≠ runtime compromise" is the right threat model. The repair loop (Task 14.10) — feeding compiler errors back to agents — is exactly how agentic generation should be wired.</li>
+      <li><strong>Capability allowlisting (Phase 6).</strong> Metadata can only invoke registered capabilities (<code>core.entity.create.v1</code>), never arbitrary SQL/code/HTTP. This keeps the DSL declarative and auditable.</li>
+      <li><strong>Sane storage model.</strong> System columns (tenant, module, entity, state, versions, timestamps) <em>outside</em> JSONB, business fields inside (Task 1.7), with optimistic locking, soft-delete, and record-to-contract-version binding (Task 4.7). These are the decisions that usually get wrong in JSONB platforms.</li>
+      <li><strong>Exit gates on every phase</strong> with testable "Done when" criteria — this makes the plan unusually well-suited to AI-assisted development (see Section 4).</li>
+      <li><strong>Honest scoping signals:</strong> mobile offline writes may be deferred (Task 11.5), air-gap AI options include "AI disabled" (Task 18.12), performance work is benchmark-driven (Phase 13).</li>
+    </ul>
+  </div>
+
+  <h3>1.2 Phase-by-phase feasibility (solo, full-time, AI-assisted)</h3>
+  <p class="footnote">Estimates assume one strong full-stack engineer working full-time with an AI coding agent (Claude Code or similar), tests written alongside code. Ranges are calendar months/weeks.</p>
+  <table>
+    <thead><tr><th style="width:26%;">Phase</th><th style="width:14%;">Feasibility</th><th style="width:16%;">Solo estimate</th><th style="width:12%;">Risk</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td><strong>0</strong> Architecture freeze</td><td>✅ Easy</td><td>1–2 weeks</td><td><span class="badge b-low">Low</span></td><td>Pure documentation; AI can draft 80% of it. Don't gold-plate.</td></tr>
+      <tr><td><strong>1</strong> PostgreSQL/Supabase foundation</td><td>✅ Easy</td><td>3–5 weeks</td><td><span class="badge b-low">Low</span></td><td>Well-trodden ground. The JSONB envelope + relationship store is straightforward; index strategy will be revisited in P13.</td></tr>
+      <tr><td><strong>2</strong> Auth, RLS, tenant isolation</td><td>✅ Hard but bounded</td><td>3–4 weeks</td><td><span class="badge b-med">Medium</span></td><td>Correctness here is existential. The cross-tenant test matrix (2.8) must become permanent CI. Identity propagation (2.1) is the fiddliest part.</td></tr>
+      <tr><td><strong>3</strong> Contract specification</td><td>⚠️ Hard — design risk</td><td>4–6 weeks</td><td><span class="badge b-high">High</span></td><td><strong>The intellectual core of the product.</strong> Under-specify and the runtime leaks; over-constrain and real ERP logic won't fit. Both Fleet <em>and</em> Audit must validate against v1 (exit gate) — enforce that.</td></tr>
+      <tr><td><strong>4</strong> Contract registry/lifecycle</td><td>✅ Easy</td><td>2–3 weeks</td><td><span class="badge b-low">Low</span></td><td>Immutability + hashing + version binding are mechanical once the spec exists.</td></tr>
+      <tr><td><strong>5</strong> Deterministic compiler</td><td>✅ Bounded, testable</td><td>4–6 weeks</td><td><span class="badge b-med">Medium</span></td><td>Mostly validation stages; JSON Schema + graph checks + a security linter. Highly amenable to test-first AI development and fuzzing.</td></tr>
+      <tr><td><strong>6</strong> Capability registry</td><td>✅ Easy</td><td>1–2 weeks</td><td><span class="badge b-low">Low</span></td><td>Small, high-leverage. Certified-extension interface (6.4) matters long-term — design, don't over-build.</td></tr>
+      <tr><td><strong>7</strong> Generic data runtime</td><td>✅ Bounded</td><td>4–6 weeks</td><td><span class="badge b-med">Medium</span></td><td>The "no vertical-specific controllers" discipline must be enforced here or the thesis dies quietly.</td></tr>
+      <tr><td><strong>8</strong> Workflow/transaction engine</td><td>⚠️ Hard</td><td>4–7 weeks</td><td><span class="badge b-high">High</span></td><td>Concurrency (locking order, idempotency, atomic multi-record transactions) is where real ERP bugs live. Plan extra time; this phase benefits most from property-based tests.</td></tr>
+      <tr><td><strong>9</strong> Next.js execution API</td><td>✅ Easy</td><td>2–3 weeks</td><td><span class="badge b-low">Low</span></td><td>Thin layer over P7/P8. Use the user's RLS-scoped Supabase client, never service role (as the doc demands).</td></tr>
+      <tr><td><strong>10</strong> Headless web UI</td><td>⚠️ Long tail</td><td>6–10 weeks</td><td><span class="badge b-med">Medium</span></td><td>Renderer + form/grid/Kanban/metrics components. Functionally feasible; the risk is polish. Ship 6 excellent components, not 20 average ones. Ends at <strong>Milestone D — first sellable demo</strong>.</td></tr>
+      <tr><td><strong>11</strong> React Native runtime</td><td>⚠️ Feasible; defer depth</td><td>3–5 weeks (thin)</td><td><span class="badge b-med">Medium</span></td><td>Thin read/approve mobile client is fine early. Offline writes are a quagmire — the doc's "no-offline-write initially" option is the right choice.</td></tr>
+      <tr><td><strong>12</strong> Audit &amp; observability</td><td>✅ Bounded</td><td>2–3 weeks</td><td><span class="badge b-low">Low</span></td><td>Mostly schemas + structured logging. Restore test (12.7) is cheap insurance; do it.</td></tr>
+      <tr><td><strong>13</strong> Performance/projections</td><td>⚠️ Hard, empirical</td><td>3–6 weeks</td><td><span class="badge b-high">High</span></td><td>JSONB containment queries and aggregations degrade non-linearly. Projection-index design (13.3) is sound, but expect iteration. Consider partitioning per tenant early.</td></tr>
+      <tr><td><strong>14</strong> AI Command Plane</td><td>⚠️ Feasible with gates</td><td>6–10 weeks</td><td><span class="badge b-high">High</span></td><td>The architecture (agents → candidate contract → compiler → repair loop → human approval) is the current best practice. Generation <em>quality</em> needs an eval harness; budget for prompt/schema iteration.</td></tr>
+      <tr><td><strong>15</strong> Metadata Studio</td><td>✅ Bounded but sizable</td><td>6–10 weeks</td><td><span class="badge b-med">Medium</span></td><td>A visual contract editor is a product in itself. A minimal version (schema editor + validation + publish) should actually be pulled <strong>earlier</strong> — it's your own daily tool and the air-gap story.</td></tr>
+      <tr><td><strong>16</strong> Security hardening</td><td>✅ Feasible, process-heavy</td><td>4–8 weeks</td><td><span class="badge b-med">Medium</span></td><td>Threat model, SBOM, signing, patch process — mostly disciplined process, but government reviewers will probe it. Defer until a real enterprise deal demands it.</td></tr>
+      <tr><td><strong>17</strong> SaaS Docker/cloud</td><td>✅ Easy</td><td>2–4 weeks</td><td><span class="badge b-low">Low</span></td><td>Start with docker-compose on a single VPS; ECS Fargate only when SaaS traction justifies it.</td></tr>
+      <tr><td><strong>18</strong> Self-hosted / air-gapped</td><td>⚠️ Heavy operational tail</td><td>6–12 weeks</td><td><span class="badge b-high">High</span></td><td>Install/upgrade/rollback bundles, offline identity, dependency inventory — each is feasible, but supporting disconnected customers <em>alone</em> is the real cost. Build only against a signed letter of intent.</td></tr>
+      <tr><td><strong>19</strong> E2E validation</td><td>✅ Bounded</td><td>2–3 weeks</td><td><span class="badge b-low">Low</span></td><td>Mostly executing suites that should already exist. The third zero-code vertical (19.3) is the most valuable proof in the whole plan.</td></tr>
+      <tr><td><strong>20</strong> Launch governance</td><td>✅ Easy</td><td>1–2 weeks</td><td><span class="badge b-low">Low</span></td><td>Documentation of practices you should already be following lightly.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout warn">
+    <strong>⏱️ The honest arithmetic</strong>
+    Summed conservatively: <strong>~18–30 months of focused solo work</strong> to complete all 21 phases — before real customer-driven rework, which typically adds 30–50%. This is a roadmap for a funded team of 4–8. For a solo developer the question isn't feasibility, it's <strong>sequencing for survival</strong>: reach Milestone D (Phase 10, ~10–12 months in) with a design partner attached, and let revenue — not the document — decide what gets built in Phases 11–20.
+  </div>
+
+  <h3>1.3 Milestone realism</h3>
+  <table>
+    <thead><tr><th>Milestone</th><th>What it proves</th><th>Verdict</th></tr></thead>
+    <tbody>
+      <tr><td><strong>A</strong> Secure data plane (P2)</td><td>Tenant isolation works</td><td>✅ Correctly placed as the first hard gate.</td></tr>
+      <tr><td><strong>B</strong> Language exists (P5)</td><td>Contract spec + compiler</td><td>✅ The moat begins here. Protect the spec with versioning from day one.</td></tr>
+      <tr><td><strong>C</strong> Execution engine (P9)</td><td>Generic CRUD + workflows + API</td><td>✅ Point at which internal tools can be dogfooded.</td></tr>
+      <tr><td><strong>D</strong> Visibly self-building (P10)</td><td>Metadata → working UI</td><td>🎯 <strong>First demo that sells.</strong> Everything before this is invisible to clients.</td></tr>
+      <tr><td><strong>E</strong> Platform-independent (P11)</td><td>Same contract on web + mobile</td><td>⚠️ Nice-to-have for the thesis; not needed for first revenue.</td></tr>
+      <tr><td><strong>F/G</strong> AI safe / AI builds apps (P13–14)</td><td>Intent → contract → app</td><td>⚠️ The headline vision, but only safe <em>and</em> valuable after the compiler exists. Correctly last-ish; don't let it creep forward.</td></tr>
+      <tr><td><strong>H</strong> Government-ready (P18)</td><td>Air-gapped deployment</td><td>⚠️ A differentiator, but a business decision, not an engineering one. Defer until pulled by a customer.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ================= 2. COMMERCIAL ================= -->
+<section id="commercial">
+  <h2 class="sec"><span class="num">2</span>Commercial Viability</h2>
+  <p class="lede">The markets XORVA touches are large and growing, but the document contains <strong>no ICP, no pricing, no channel, and no design-partner plan</strong>. Commercially, the plan is currently a technology document, not a business plan. That's fixable — and fixing it is higher-leverage than any remaining engineering task.</p>
+
+  <h3>2.1 Market size (third-party estimates)</h3>
+  <div class="card">
+    <ul>
+      <li><strong>Low-code/no-code platforms:</strong> Gartner puts the overall low-code development technologies market at roughly <strong>$44.5B</strong>, with LCAP alone around $16.5B, and growth projected at ~28% CAGR through 2025 [<a href="https://joget.com/low-code-growth-key-statistics-facts-that-changed-its-impact/">3</a>][<a href="https://blog.tooljet.com/gartner-forecast-on-low-code-development-technologies/">1</a>]. Gartner also projects that ~70% of new enterprise applications will use low-code/no-code technologies [<a href="https://www.adalo.com/posts/traditional-coding-vs-no-code-adoption-statistics">2</a>]. Aggressive scenarios place the category near $388B by 2030 [<a href="https://www.adalo.com/posts/traditional-coding-vs-no-code-adoption-statistics">2</a>]. (Treat the outer numbers as vendor-published upper bounds.)</li>
+      <li><strong>Fleet management software (reference vertical #1):</strong> ~<strong>$28B in 2025 → ~$56B by 2030</strong> at ~14–17% CAGR [<a href="https://www.thebusinessresearchcompany.com/report/fleet-management-software-global-market-report">4</a>]. XORVA won't capture this — but it shows a single reference vertical is itself a multi-billion-dollar market, and the SME tier of it is badly served by either giant suites or spreadsheets.</li>
+      <li><strong>Adjacent tailwinds:</strong> AI app generation (Lovable, Bolt.new, v0, Replit Agent) has normalized "describe an app, get an app" for buyers — while simultaneously creating demand for the exact thing XORVA offers and raw code-gen lacks: <strong>governed, multi-tenant, auditable, deterministic execution</strong>.</li>
+    </ul>
+  </div>
+
+  <h3>2.2 Competitive landscape</h3>
+  <table>
+    <thead><tr><th>Competitor class</th><th>Examples</th><th>Threat to XORVA</th><th>XORVA's counter</th></tr></thead>
+    <tbody>
+      <tr><td>Enterprise low-code/BPM</td><td>OutSystems, Mendix, Appian, Power Apps</td><td><span class="badge b-med">Medium</span> — dominant in enterprises, huge ecosystems</td><td>They're expensive, lock-in-heavy, and cloud-tethered. XORVA's wedge: sovereignty + air-gap + AI-native contracts. But you cannot out-sell them directly — avoid head-on enterprise deals early.</td></tr>
+      <tr><td>Internal-tool builders</td><td>Retool, Appsmith, Budibase, ToolJet</td><td><span class="badge b-med">Medium</span> — fast to adopt for internal apps</td><td>They glue UIs to existing DBs; weak at being the <em>system of record</em> with workflows, versioning and audit. XORVA is an execution platform, not a UI layer.</td></tr>
+      <tr><td>Open-source ERP</td><td>Odoo (+ partner ecosystem)</td><td><span class="badge b-high">High</span> — real ERP, cheap, well-known</td><td>Odoo's customization is Python code forks; XORVA's is declarative, versioned, AI-assisted. Compete on agility and clean multi-tenancy, not feature count.</td></tr>
+      <tr><td>Flexible databases/spreadsheets</td><td>Airtable, Baserow, NocoDB</td><td><span class="badge b-med">Medium</span> — bottom-up adoption, cheap</td><td>Weak workflow state machines, poor audit, limited permissions. XORVA targets processes, not lists.</td></tr>
+      <tr><td>AI code generators</td><td>Lovable, Bolt.new, v0, Replit Agent</td><td><span class="badge b-low">Low (directly)</span> — they generate code, not governed runtimes</td><td>Generated code has no tenant isolation, no audit trail, no versioned contract, and no air-gap story. XORVA can position as "what you graduate to" — or absorb them as an intake channel.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>2.3 The honest go-to-market verdict</h3>
+  <div class="verdict good">
+    <div class="icon">✅</div>
+    <div>
+      <h4>Viable: selling solutions built on XORVA (start here)</h4>
+      <p>Deliver vertical apps — Fleet dispatch for small logistics companies, audit management for compliance teams — as fixed-scope projects (€5k–€25k) plus per-tenant SaaS subscriptions (€200–€2,000/mo). You're selling outcomes nobody can see "under the hood," while the platform compounds underneath. This funds development, produces reference customers, and validates the contract language against real requirements.</p>
+    </div>
+  </div>
+  <div class="verdict warn">
+    <div class="icon">⚠️</div>
+    <div>
+      <h4>Not yet viable: selling XORVA-the-platform to enterprises or governments</h4>
+      <p>Government/enterprise procurement demands security questionnaires, certifications (ISO 27001 / SOC 2 or national equivalents), references, SLAs, and a support organization — none of which a solo developer can credibly offer, regardless of code quality. Air-gap/sovereign deployment is a genuinely strong differentiator (especially in the current EU data-sovereignty climate), but sales cycles run 6–18 months. Keep the architecture air-gap-<em>ready</em>; don't chase air-gap <em>deals</em> until Phase 16–18 are paid for by an actual requirement.</p>
+    </div>
+  </div>
+  <div class="card">
+    <h4>Suggested pricing ladder (once Milestone D is reached)</h4>
+    <ul>
+      <li><strong>Build fee:</strong> €5k–€25k per custom module (contract authoring + onboarding) — your services revenue while the platform matures.</li>
+      <li><strong>SaaS per tenant:</strong> €200–€800/mo for hosted modules; usage tiers later.</li>
+      <li><strong>Dedicated instance:</strong> €1k–€3k/mo managed single-tenant hosting.</li>
+      <li><strong>On-prem/sovereign license:</strong> €15k–€60k/yr + support retainer — only when Phase 16–18 are complete and a customer has asked twice.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ================= 3. CHALLENGES ================= -->
+<section id="challenges">
+  <h2 class="sec"><span class="num">3</span>Challenges &amp; Solutions</h2>
+  <p class="lede">Ranked roughly by severity for a solo builder. Items marked <span class="badge b-info">in plan</span> already have a mitigation inside the document — execute it; don't reinvent it.</p>
+
+  <h3>3.1 Technical</h3>
+  <table>
+    <thead><tr><th style="width:24%;">Challenge</th><th style="width:34%;">Why it bites</th><th>Mitigation</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>DSL expressiveness ceiling</strong> <span class="badge b-high">Top risk</span></td>
+        <td>Real ERP logic (VAT, Peppol invoicing, pricing rules) will outgrow any deliberately minimal DSL. Over-restrict and clients hit walls; loosen and you've rebuilt arbitrary code execution.</td>
+        <td>The doc's answer is correct: keep primitives minimal (8.1–8.2) and route complexity through <strong>Certified Extensions</strong> (6.4). Build the extension interface early, ship 2–3 real extensions before Phase 14, and version the spec strictly (3.9) so extensions can't fork the language.</td>
+      </tr>
+      <tr>
+        <td><strong>JSONB performance at ERP scale</strong></td>
+        <td>Containment queries (<code>@&gt;</code>), sorting on dynamic fields, and aggregations degrade as record counts grow; dashboards are latency-sensitive.</td>
+        <td><span class="badge b-info">in plan</span> Phase 13's projection indexes are the right fix. Add: benchmark at POC scale <em>before</em> Phase 10 (don't discover it at demo time), use expression indexes as a stopgap, partition the record envelope by tenant, and set hard pagination limits (7.8).</td>
+      </tr>
+      <tr>
+        <td><strong>Tenant isolation regressions</strong></td>
+        <td>One RLS bypass ends the business. Cross-tenant bugs are easy to introduce silently when features accrete.</td>
+        <td><span class="badge b-info">in plan</span> Task 2.8's test matrix must run in CI on every merge, forever. Add: least-privilege roles (16.6) from day one, service-role credentials physically absent from the runtime environment (2.7), and adversarial RLS tests in P16.3 treated as release-blocking.</td>
+      </tr>
+      <tr>
+        <td><strong>Workflow engine concurrency bugs</strong></td>
+        <td>Double-booking a vehicle, duplicated invoice transactions — the classic ERP failure modes. Hard to reproduce, fatal to trust.</td>
+        <td>Define lock ordering once (8.7), make idempotency keys mandatory for transactional actions (8.8), and use property-based tests (generate random interleavings) rather than only happy-path tests. AI agents are excellent at generating these test suites.</td>
+      </tr>
+      <tr>
+        <td><strong>Dynamic-UI polish gap</strong></td>
+        <td>Metadata-rendered UIs often feel generic next to hand-built apps, and UI quality is what demo audiences judge first.</td>
+        <td>Ship a small registry of <em>excellent</em> components (DataGrid, DynamicForm, Kanban, MetricsCard, Timeline — 10.1). Invest design effort in one reference theme. Defer exotic components; every component doubles web+mobile maintenance.</td>
+      </tr>
+      <tr>
+        <td><strong>Mobile offline sync</strong></td>
+        <td>Conflict resolution for offline writes is a multi-quarter problem that has sunk products.</td>
+        <td><span class="badge b-info">in plan</span> Take Task 11.5's "no-offline-write initially" option. Read-only cache + online actions covers 80% of field-worker needs in v1.</td>
+      </tr>
+      <tr>
+        <td><strong>AI generation quality (Phase 14)</strong></td>
+        <td>LLMs produce plausible-but-invalid contracts; without measurement you'll iterate prompts by vibes.</td>
+        <td>The compiler + repair loop + human gate (14.9–14.12) is the right skeleton. Add an <strong>eval harness</strong>: a frozen suite of ~30 requirement→contract pairs scored automatically. Model upgrades then become measurable events.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>3.2 Operational</h3>
+  <table>
+    <thead><tr><th style="width:24%;">Challenge</th><th style="width:34%;">Why it bites</th><th>Mitigation</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Scope creep / phase inflation</strong> <span class="badge b-high">Top risk</span></td>
+        <td>The plan schedules mobile, government hardening, and air-gap distribution <em>before</em> launch. Each is real work; together they delay first revenue by a year or more.</td>
+        <td>Re-sequence (see Section 4.2): Phases 0–10 + minimal 12 → ship. Treat 11, 14, 15, 16, 18 as <strong>customer-funded</strong>: start each only against a named requirement. The doc's exit gates already give you the discipline mechanism — enforce them against the trimmed sequence.</td>
+      </tr>
+      <tr>
+        <td><strong>Solo burnout</strong></td>
+        <td>18–30 months with no users is psychologically brutal.</td>
+        <td>Demoable increment every 4–6 weeks (the phase exit gates map to demos naturally). Get the platform dogfooding itself ASAP (XORVA managing XORVA's own tasks is a great forcing function and a marketing moment).</td>
+      </tr>
+      <tr>
+        <td><strong>Support burden of self-hosted customers</strong></td>
+        <td>Every on-prem install is a snowflake environment that pages you at 2 a.m.</td>
+        <td>Health/readiness model (12.5), runbooks (20.5), and a strict "supported configurations" list. Price on-prem support richly enough to fund the hassle, or decline it.</td>
+      </tr>
+      <tr>
+        <td><strong>Key-person risk</strong></td>
+        <td>You are the only engineer, support agent, and documentation.</td>
+        <td><span class="badge b-info">in plan</span> ADRs (0.3) and the glossary (0.2) — actually keep them current. AI assistants make doc upkeep nearly free; make "update the ADR" part of every task's definition of done.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>3.3 Business</h3>
+  <table>
+    <thead><tr><th style="width:24%;">Challenge</th><th style="width:34%;">Why it bites</th><th>Mitigation</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Building 12+ months without customer feedback</strong> <span class="badge b-high">Top risk</span></td>
+        <td>The plan's first external validation point (Phase 19) arrives after ~2 years of solo work. Markets punish assumptions that old.</td>
+        <td>Sign <strong>1–2 design partners</strong> (one fleet operator, one audit/compliance shop) by Milestone C, with free/discounted use in exchange for weekly feedback. Their real data shapes the contract language far better than Fleet-v1 examples will.</td>
+      </tr>
+      <tr>
+        <td><strong>Enterprise/gov sales cycles</strong></td>
+        <td>6–18 month cycles with procurement, security review, and certification demands kill solo cash flow.</td>
+        <td>Sell SME first (decisions in weeks), let the platform mature, and enter gov/enterprise through a partner or reseller who owns the relationship.</td>
+      </tr>
+      <tr>
+        <td><strong>"Why not Airtable/Odoo/Retool?"</strong></td>
+        <td>Buyers compare you to free or cheap incumbents, not to your architectural ideals.</td>
+        <td>Never sell the platform; sell the outcome in the buyer's vocabulary: "your dispatch workflow, audited, on your own infrastructure, changed without a developer." Compliance + self-hosting + workflow rigor is the defensible trio.</td>
+      </tr>
+      <tr>
+        <td><strong>No distribution plan in the document</strong></td>
+        <td>The plan has 20 phases and zero marketing tasks.</td>
+        <td>Add a standing 2–4 h/week marketing slot: build-in-public posts of each exit-gate demo, one vertical SEO page cluster (e.g., "fleet dispatch software for small operators"), and the "watch AI build an app that compiles itself" video — it is your single most marketable asset once Phase 14 lands.</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ================= 4. SOLO STRATEGY ================= -->
+<section id="solo">
+  <h2 class="sec"><span class="num">4</span>Solo Developer Strategy</h2>
+  <p class="lede">Three governing principles: <strong>(1) build horizontally, sell vertically</strong> — the platform is the means, the Fleet/Audit apps are the product; <strong>(2) revenue before platform perfection</strong> — Phases 11–20 are customer-funded; <strong>(3) the document's exit gates are your sprint reviews</strong> — never skip one.</p>
+
+  <h3>4.1 Revised execution roadmap</h3>
+  <table>
+    <thead><tr><th style="width:16%;">Stage</th><th style="width:20%;">Timeline</th><th>Scope (doc phases)</th><th>Exit / revenue event</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>S0 · Foundation</strong></td><td>Weeks 1–2</td>
+        <td>P0 in full, but lean: invariants, glossary, ADRs, monorepo skeleton, CI. AI drafts, you ratify.</td>
+        <td>Repo boots; CI green; invariants doc is the contract you'll hold AI agents to.</td>
+      </tr>
+      <tr>
+        <td><strong>S1 · Secure data plane</strong></td><td>Months 1–2</td>
+        <td>P1 + P2. Tenant envelope, RLS, isolation test matrix in CI.</td>
+        <td><strong>Milestone A.</strong> The cross-tenant suite passes and never leaves CI.</td>
+      </tr>
+      <tr>
+        <td><strong>S2 · The language</strong></td><td>Months 2–4</td>
+        <td>P3 + P4 + P5 + P6. Spec, registry, compiler, capabilities. Both Fleet and Audit contracts must validate (P3 exit gate) — no exceptions.</td>
+        <td><strong>Milestone B.</strong> Malicious-contract fuzz corpus rejects 100%.</td>
+      </tr>
+      <tr>
+        <td><strong>S3 · The engine</strong></td><td>Months 4–7</td>
+        <td>P7 + P8 + P9. Generic CRUD, workflow engine, API. <em>Start design-partner conversations now.</em></td>
+        <td><strong>Milestone C.</strong> Fleet dispatch multi-entity transaction passes; dogfood begins.</td>
+      </tr>
+      <tr>
+        <td><strong>S4 · The visible product</strong></td><td>Months 7–10</td>
+        <td>P10 + P12 (audit/logging core only) + a <em>minimal</em> slice of P15 (contract viewer + manual schema editor — you need it to onboard clients without hand-editing JSON).</td>
+        <td><strong>Milestone D — first sellable demo.</strong> Design partner #1 live on Fleet; first paid build fee.</td>
+      </tr>
+      <tr>
+        <td><strong>S5 · Productize</strong></td><td>Months 10–16</td>
+        <td>Customer-funded backlog. Likely order: P13 performance (as data grows) → P17 simple docker-compose hosting → P11 thin mobile → P15 studio completion → P14 AI Command Plane (your marketing engine and margin engine).</td>
+        <td>3–5 paying tenants; €1.5k–€5k MRR; P14 demo video published.</td>
+      </tr>
+      <tr>
+        <td><strong>S6 · Scale-up tier</strong></td><td>Month 16+</td>
+        <td>P16 hardening, P18 air-gap, P19/P20 formal validation — <strong>only against named enterprise/gov requirements</strong>.</td>
+        <td>First sovereign/on-prem license; or a hire (your first engineer) funded by revenue.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    <strong>✂️ What to cut or defer vs. the document as written</strong>
+    Mobile depth (P11) → thin client only. ECS Fargate (17.4–17.5) → single VPS + docker-compose until SaaS traction. Government hardening (P16) and air-gap bundles (P18) → deferred to S6. Full Metadata Studio (P15) → minimal slice in S4, rest later. AI Command Plane (P14) → after paying customers exist; it accelerates <em>your</em> delivery, so it pays for itself, but it is not needed for first revenue.
+  </div>
+
+  <h3>4.2 Maximizing your Claude / ChatGPT subscriptions</h3>
+  <p>Treat the two subscriptions as two different hires: <strong>Claude (ideally Max tier + Claude Code) is your in-repo engineer</strong>; <strong>ChatGPT (Plus/Pro) is your staff PM / spec reviewer / business co-founder</strong>. Used this way, a $40–$220/mo combined spend is the highest-ROI line item in the entire project.</p>
+
+  <div class="grid2">
+    <div class="card">
+      <h4>🤖 Claude — the builder</h4>
+      <ul style="font-size:14.5px;">
+        <li><strong>Claude Code in the monorepo.</strong> Create a <code>CLAUDE.md</code> at repo root containing: the architectural invariants (Task 0.1), the glossary (0.2), coding conventions, and a hard rule — "never bypass RLS; never use service-role credentials; every task must end with tests."</li>
+        <li><strong>One document task = one work unit.</strong> The plan's tasks are already written as Input / Work / Output / Done-when — that's a perfect agent prompt. Paste the task verbatim and demand all four artifacts.</li>
+        <li><strong>Tests before implementation.</strong> For every task: (1) design note → (2) failing tests encoding the "Done when" → (3) implementation → (4) explicit gate check. This flips the LLM failure mode from "confident wrong code" to "verifiable green suite."</li>
+        <li><strong>Plan mode for P3 and P8.</strong> The contract spec and workflow DSL deserve extended design conversations before any code — use Claude's long context to iterate on the spec itself, with Fleet and Audit as simultaneous test cases.</li>
+        <li><strong>Adversarial generation.</strong> Have Claude generate hundreds of malicious contracts (SQL/JS/shell/URL smuggling, unknown capabilities, permission inconsistencies) as the Phase 5/16 fuzz corpus.</li>
+        <li><strong>Property-based tests</strong> for Phase 8 concurrency and Phase 13 benchmarks (SQL benchmark scripts, before/after reports).</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>💬 ChatGPT — the critic &amp; business brain</h4>
+      <ul style="font-size:14.5px;">
+        <li><strong>Spec red-teaming.</strong> Paste contract-spec drafts and ask it to play three roles: an ERP implementer who needs VAT logic, an attacker injecting metadata, and a government auditor. Collect failure modes before they ship.</li>
+        <li><strong>ADR drafting and decisions.</strong> Feed it Task 0.3's example decisions (JSONB vs physical tables, shared vs isolated DB…) and have it produce pro/con write-ups you then ratify.</li>
+        <li><strong>A persistent Project</strong> seeded with the glossary, invariants, and contract schema, so every answer uses XORVA's exact vocabulary.</li>
+        <li><strong>Go-to-market work the document lacks:</strong> ICP definition, design-partner outreach emails, pricing experiments, landing-page copy, demo scripts, vertical SEO outlines.</li>
+        <li><strong>Docs and proposals:</strong> client-facing module proposals, security questionnaire answers, release notes — all drafted, you edit.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h4>The per-task prompt pattern (works in both tools)</h4>
+  <pre class="prompt">You are working on XORVA. Attached: Architecture Invariants, Glossary, and the
+relevant phase context.
+
+TASK 5.4 — Validate Relationship Graphs
+Input:  Relationship metadata (spec attached).
+Work:   Check referenced entities exist; target fields exist; relationship keys
+        unique; invalid cycles where prohibited.
+Output: Relationship validator module.
+Done when: Broken references cannot be published.
+
+Produce, in order:
+1. A one-page design note (data structures, edge cases, open questions).
+2. A failing test suite that encodes the "Done when" criterion, including at
+   least 10 adversarial inputs.
+3. The implementation.
+4. A gate checklist confirming each "Done when" clause, with the test names
+   that prove it.
+Do not relax any invariant. If the spec is ambiguous, list the ambiguity and
+your recommended resolution before coding.</pre>
+
+  <h3>4.3 Guardrails for AI-assisted development</h3>
+  <div class="card">
+    <ul>
+      <li><strong>You personally review all security-critical code:</strong> RLS policies, grants, tenant-context middleware, the compiler's security linter, and anything touching credentials. LLMs write plausible-looking authz code that is subtly wrong.</li>
+      <li><strong>No gate skipped:</strong> an exit gate fails until its tests pass in CI — the discipline <em>is</em> the product, since tenant isolation and determinism are what you'll eventually sell.</li>
+      <li><strong>Prompt with the task's own acceptance criteria</strong> (as above) instead of paraphrasing; paraphrasing is where requirements silently drift.</li>
+      <li><strong>Keep canonical docs small and current</strong> (invariants ≤ 2 pages, glossary, ADR index) so they fit into every AI session's context — stale context produces confidently inconsistent code.</li>
+      <li><strong>Pin everything:</strong> lock dependency versions in CI; ask the agent to justify any new dependency against the air-gap dependency inventory (18.1) from day one.</li>
+      <li><strong>Weekly human architecture review:</strong> one hour, no coding — diff the week's changes against the invariants. AI accelerates drift as effectively as it accelerates progress.</li>
+    </ul>
+  </div>
+
+  <h3>4.4 Your first 14 days</h3>
+  <div class="card">
+    <ol>
+      <li><strong>Days 1–2:</strong> Have ChatGPT draft the invariants doc and glossary (Tasks 0.1–0.2); you edit and freeze them. Initialize the monorepo and ADR directory.</li>
+      <li><strong>Days 3–5:</strong> Claude Code scaffolds CI + local Supabase/Postgres lifecycle (Task 1.1); write the tenant + membership migrations with generated pgTAP tests (1.3–1.4).</li>
+      <li><strong>Days 6–9:</strong> JSONB envelope + relationship store + versioning (1.5–1.7, 1.9), test-first.</li>
+      <li><strong>Days 10–12:</strong> RLS policies + grants + service-role prohibition (Tasks 2.1–2.7).</li>
+      <li><strong>Days 13–14:</strong> Cross-tenant isolation suite (2.8–2.9) green in CI → <strong>Milestone A reached</strong>. Post a build-in-public update. Email 10 fleet operators and 10 audit/compliance teams to open design-partner conversations.</li>
+    </ol>
+  </div>
+
+  <div class="verdict good">
+    <div class="icon">🎯</div>
+    <div>
+      <h4>Bottom line</h4>
+      <p>XORVA's plan is architecturally excellent and commercially naive — a strong position to be in, because the naive part is fixable in weeks while the excellent part takes years. Build the security core exactly as written, trim everything after Phase 10 to "customer-funded," attach a paying vertical early, and let your AI subscriptions carry the test-heavy, spec-heavy, boilerplate-heavy 80% of each task so your own judgment stays focused on the 20% that decides whether this becomes a company: the contract language, tenant isolation, and the first ten customers.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= SOURCES ================= -->
+<section id="sources">
+  <h2 class="sec"><span class="num">§</span>Sources</h2>
+  <p class="footnote">Market figures are third-party/vendor-published estimates retrieved 2026-09-17; ranges vary by methodology and are indicative.</p>
+  <ol style="font-size:14px;">
+    <li>[1] Gartner low-code forecast summary (CAGR 28.1% 2023–2025; 70% of new applications) — <a href="https://blog.tooljet.com/gartner-forecast-on-low-code-development-technologies/">blog.tooljet.com/gartner-forecast-on-low-code-development-technologies</a></li>
+    <li>[2] No-code/low-code adoption statistics (Gartner 70% projection; $388.6B aggressive 2030 scenario) — <a href="https://www.adalo.com/posts/traditional-coding-vs-no-code-adoption-statistics">adalo.com/posts/traditional-coding-vs-no-code-adoption-statistics</a></li>
+    <li>[3] Low-code market statistics (LCAP ~$16.5B; overall low-code technologies ~$44.5B) — <a href="https://joget.com/low-code-growth-key-statistics-facts-that-changed-its-impact/">joget.com/low-code-growth-key-statistics-facts-that-changed-its-impact</a></li>
+    <li>[4] Fleet Management Software market ($28.03B 2025 → $32.79B 2026 → $55.97B 2030, 14.3% CAGR) — <a href="https://www.thebusinessresearchcompany.com/report/fleet-management-software-global-market-report">thebusinessresearchcompany.com/report/fleet-management-software-global-market-report</a></li>
+  </ol>
+</section>
+
+<footer>
+  Prepared 2026-09-17 · Review of <em>XORVA Master Development Lifecycle and Execution Plan</em> (architecture.md) · Independent technical &amp; commercial analysis for a solo-developer execution context.
+</footer>
+
+</div>
+</body>
+</html>
